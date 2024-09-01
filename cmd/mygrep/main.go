@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"unicode"
 )
 
 // Ensures gofmt doesn't remove the "bytes" import above (feel free to remove this!)
@@ -36,44 +37,17 @@ func main() {
 
 	if parser.Match(string(line)) {
 		os.Exit(0)
-	} else {
-		os.Exit(1)
 	}
-	// return false, fmt.Errorf("input does not match")
-
-	//ok, err := matchLine(line, pattern)
-	//if err != nil {
-	//	fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	//	os.Exit(1)
-	//}
-
-	//if !ok {
-	//	os.Exit(1)
-	//}
-
-	//// default exit code is 0 which means success
-	//os.Exit(0)
-}
-
-func matchLine(line []byte, pattern string) (bool, error) {
-	parser := Parser{
-		pattern:  pattern,
-		position: 0,
-		tokens:   []Token{},
-	}
-
-	parser.Parse()
-
-	if parser.Match(string(line)) {
-	}
-	return false, fmt.Errorf("input does not match")
+	os.Exit(1)
 }
 
 type TokenType int
 
 const (
 	Char TokenType = iota
-	DigitClass
+
+	DigitCharacterClass
+	AlphanumericCharacterClass
 )
 
 type Token struct {
@@ -93,9 +67,17 @@ func (p *Parser) parseCharacterClass() Token {
 	case 'd':
 		p.position += 1
 		return Token{
-			Type:  DigitClass,
+			Type:  DigitCharacterClass,
 			Value: "\\d",
 		}
+
+	case 'w':
+		p.position += 1
+		return Token{
+			Type:  AlphanumericCharacterClass,
+			Value: "\\w",
+		}
+
 	default:
 	}
 	return Token{}
@@ -134,7 +116,14 @@ func (p *Parser) Match(input string) bool {
 		// Attempt to match the pattern from this starting position
 		for _, token := range p.tokens {
 			switch token.Type {
-			case DigitClass:
+			case AlphanumericCharacterClass:
+				if inputPos >= inputLength || !isAlphanumeric(input[inputPos]) {
+					matched = false
+					break
+				}
+				inputPos++
+
+			case DigitCharacterClass:
 				if inputPos >= inputLength || !isDigit(input[inputPos]) {
 					matched = false
 					break
@@ -168,4 +157,8 @@ func (p *Parser) Match(input string) bool {
 
 func isDigit(c byte) bool {
 	return c > '0' && c <= '9'
+}
+
+func isAlphanumeric(c byte) bool {
+	return unicode.IsLetter(rune(c)) || c == '_' || isDigit(c)
 }
