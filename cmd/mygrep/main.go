@@ -27,6 +27,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	//uncomment in case of debugging
+	/*
+		pattern := `\d\\d\\d apple`
+		line := "124 apples"
+	*/
 	parser := Parser{
 		pattern:  pattern,
 		position: 0,
@@ -37,10 +42,12 @@ func main() {
 
 	if parser.Match(string(line)) {
 		fmt.Println("match found")
+		fmt.Println("substring -> ", parser.substring)
 		os.Exit(0)
+	} else {
+		fmt.Println("match not found")
+		os.Exit(1)
 	}
-	fmt.Println("match not found")
-	os.Exit(1)
 }
 
 type TokenType int
@@ -62,9 +69,10 @@ type Token struct {
 }
 
 type Parser struct {
-	pattern  string
-	position int
-	tokens   []Token
+	pattern   string
+	position  int
+	tokens    []Token
+	substring string
 }
 
 func (p *Parser) parseCharacterGroup() Token {
@@ -115,13 +123,19 @@ func (p *Parser) parseCharacterClass() Token {
 			Value: "\\w",
 		}
 
+	case '\\':
+		p.position += 1
+		return Token{
+			Type:  Char,
+			Value: `\`,
+		}
 	default:
 	}
 	return Token{}
 }
 
 func (p *Parser) Parse() []Token {
-	for p.position < len(p.pattern)-1 {
+	for p.position < len(p.pattern) {
 		char := p.pattern[p.position]
 
 		switch char {
@@ -137,6 +151,7 @@ func (p *Parser) Parse() []Token {
 			p.tokens = append(p.tokens, token)
 
 		default:
+			fmt.Println("default condition true")
 			p.position += 1
 			token := Token{
 				Type:  Char,
@@ -175,6 +190,9 @@ func (p *Parser) Match(input string) bool {
 				inputPos++
 
 			case Char:
+				//fmt.Println(input, inputPos, inputLength, p)
+				fmt.Printf("input = %s | inputPos = %d | inputLength = %d | p = %v\n", input, inputPos, inputLength, p)
+				fmt.Println(token)
 				if inputPos >= inputLength || input[inputPos] != token.Value[0] {
 					matched = false
 					break
@@ -200,8 +218,10 @@ func (p *Parser) Match(input string) bool {
 			}
 
 			if !matched {
+				p.substring = ""
 				break // Stop checking if this substring doesn't match
 			}
+			p.substring += string(input[inputPos-1])
 		}
 
 		// If all tokens matched successfully, return true
@@ -211,6 +231,7 @@ func (p *Parser) Match(input string) bool {
 	}
 
 	// No matching substring found
+	p.substring = ""
 	return false
 }
 
