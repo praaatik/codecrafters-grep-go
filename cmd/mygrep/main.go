@@ -121,7 +121,7 @@ func (p *Parser) parseCharacterClass() Token {
 }
 
 func (p *Parser) Parse() []Token {
-	for p.position < len(p.pattern) {
+	for p.position < len(p.pattern)-1 {
 		char := p.pattern[p.position]
 
 		switch char {
