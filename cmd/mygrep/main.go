@@ -29,8 +29,8 @@ func main() {
 
 	//uncomment in case of debugging
 	/*
-		pattern := `^log`
-		line := "log"
+		pattern := `c+a+t`
+		line := "cccaaaaaat"
 	*/
 	parser := Parser{
 		pattern:  pattern,
@@ -40,11 +40,9 @@ func main() {
 	parser.Parse()
 
 	if parser.Match(string(line)) {
-		fmt.Println("match found")
 		fmt.Println("substring -> ", parser.substring)
 		os.Exit(0)
 	} else {
-		fmt.Println("match not found")
 		os.Exit(1)
 	}
 }
@@ -62,6 +60,9 @@ const (
 
 	StartAnchor
 	EndAnchor
+
+	OneOrMoreQuantifier
+	ZeroOrOneQuantifier
 )
 
 type Token struct {
@@ -168,6 +169,29 @@ func (p *Parser) Parse() []Token {
 			}
 			p.tokens = append(p.tokens, token)
 
+		case '+':
+			p.position += 1
+			if len(p.tokens) > 0 {
+				lastParsedToken := p.tokens[len(p.tokens)-1]
+				token := Token{
+					Type:  OneOrMoreQuantifier,
+					Value: lastParsedToken.Value + "+",
+				}
+				p.tokens = p.tokens[:len(p.tokens)-1]
+				p.tokens = append(p.tokens, token)
+			}
+
+		case '?':
+			p.position += 1
+			if len(p.tokens) > 0 {
+				lastParsedToken := p.tokens[len(p.tokens)-1]
+				token := Token{
+					Type:  ZeroOrOneQuantifier,
+					Value: lastParsedToken.Value + "?",
+				}
+				p.tokens = append(p.tokens, token)
+			}
+
 		default:
 			//fmt.Println("default condition true")
 			p.position += 1
@@ -182,6 +206,91 @@ func (p *Parser) Parse() []Token {
 	return p.tokens
 }
 
+//func (p *Parser) Match(input string) bool {
+//	inputLength := len(input)
+
+//// Iterate over each possible starting position in the input
+//for start := 0; start < inputLength; start++ {
+//	inputPos := start
+//	matched := true
+
+//// Attempt to match the pattern from this starting position
+//for _, token := range p.tokens {
+//	switch token.Type {
+//	case StartAnchor:
+//		fmt.Println("start anchor")
+//		if inputPos != 0 {
+//			matched = false
+//			break
+//		}
+
+//case EndAnchor:
+//	fmt.Println("end anchor")
+//	if inputPos != inputLength {
+//		matched = false
+//		break
+//	}
+
+//case AlphanumericCharacterClass:
+//	if inputPos >= inputLength || !isAlphanumeric(input[inputPos]) {
+//		matched = false
+//		break
+//	}
+//	inputPos++
+
+//case DigitCharacterClass:
+//	if inputPos >= inputLength || !isDigit(input[inputPos]) {
+//		matched = false
+//		break
+//	}
+//	inputPos++
+
+//case Char:
+//	fmt.Printf("input = %s | inputPos = %d | inputLength = %d | p = %v\n", input, inputPos, inputLength, p)
+//	fmt.Println(token)
+//	if inputPos >= inputLength || input[inputPos] != token.Value[0] {
+//		matched = false
+//		break
+//	}
+//	inputPos++
+
+//case PositiveCharacterGroup:
+//	if !isCharacterInGroup(input[inputPos], token.Chars) {
+//		matched = false
+//		break
+//	}
+//	inputPos++
+
+//case NegativeCharacterGroup:
+//	if isCharacterInGroup(input[inputPos], token.Chars) {
+//		matched = false
+//		break
+//	}
+//	inputPos++
+
+//default:
+//	matched = false
+//}
+
+//	if !matched {
+//		p.substring = ""
+//		break // Stop checking if this substring doesn't match
+//	}
+//	if inputPos > 0 {
+//		p.substring += string(input[inputPos-1])
+//	}
+//}
+
+//	// If all tokens matched successfully, return true
+//	if matched {
+//		return true
+//	}
+//}
+
+//		// No matching substring found
+//		p.substring = ""
+//		return false
+//	}
 func (p *Parser) Match(input string) bool {
 	inputLength := len(input)
 
@@ -191,21 +300,21 @@ func (p *Parser) Match(input string) bool {
 		matched := true
 
 		// Attempt to match the pattern from this starting position
-		for _, token := range p.tokens {
+		for i := 0; i < len(p.tokens); i++ {
+			token := p.tokens[i]
 			switch token.Type {
 			case StartAnchor:
-				fmt.Println("start anchor")
 				if inputPos != 0 {
 					matched = false
 					break
 				}
 
 			case EndAnchor:
-				fmt.Println("end anchor")
 				if inputPos != inputLength {
 					matched = false
 					break
 				}
+
 			case AlphanumericCharacterClass:
 				if inputPos >= inputLength || !isAlphanumeric(input[inputPos]) {
 					matched = false
@@ -221,8 +330,6 @@ func (p *Parser) Match(input string) bool {
 				inputPos++
 
 			case Char:
-				fmt.Printf("input = %s | inputPos = %d | inputLength = %d | p = %v\n", input, inputPos, inputLength, p)
-				fmt.Println(token)
 				if inputPos >= inputLength || input[inputPos] != token.Value[0] {
 					matched = false
 					break
@@ -242,6 +349,41 @@ func (p *Parser) Match(input string) bool {
 					break
 				}
 				inputPos++
+
+			case OneOrMoreQuantifier:
+				// Match the preceding character or group one or more times
+				//if i == 0 {
+				//	matched = false
+				//	break
+				//}
+				//precedingToken := p.tokens[i-1]
+				count := 0
+
+				char := p.tokens[i].Value
+				fmt.Println(char[0])
+
+				//for inputPos < inputLength && matchToken(p.tokens[i], input[inputPos]) {
+				for inputPos < inputLength && input[inputPos] == char[0] {
+					inputPos++
+					count++
+					//for inputPos < inputLength && inputPos > 1 && matchToken(precedingToken, input[inputPos-1]) {
+				}
+
+				if count < 1 {
+					matched = false
+					break
+				}
+
+			case ZeroOrOneQuantifier:
+				// Match the preceding character or group zero or one time
+				if i == 0 {
+					matched = false
+					break
+				}
+				precedingToken := p.tokens[i-1]
+				if inputPos < inputLength && matchToken(precedingToken, input[inputPos]) {
+					inputPos++
+				}
 
 			default:
 				matched = false
@@ -266,7 +408,6 @@ func (p *Parser) Match(input string) bool {
 	p.substring = ""
 	return false
 }
-
 func isDigit(c byte) bool {
 	return c > '0' && c <= '9'
 }
@@ -283,4 +424,31 @@ func isCharacterInGroup(c byte, group []rune) bool {
 		}
 	}
 	return false
+}
+
+func matchToken(token Token, c byte) bool {
+	//char := token.Value[0]
+	//fmt.Println(char)
+
+	switch token.Type {
+	case Char:
+		return c == token.Value[0]
+	case AlphanumericCharacterClass:
+		return isAlphanumeric(c)
+	case DigitCharacterClass:
+		return isDigit(c)
+	case PositiveCharacterGroup:
+		return isCharacterInGroup(c, token.Chars)
+	case NegativeCharacterGroup:
+		return !isCharacterInGroup(c, token.Chars)
+	default:
+		return false
+	}
+}
+
+func removePreviousToken(tokenList []Token) []Token {
+	if len(tokenList) == 0 {
+		return tokenList
+	}
+	return tokenList[:len(tokenList)-1]
 }
