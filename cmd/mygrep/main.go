@@ -15,7 +15,7 @@ var _ = bytes.ContainsAny
 func main() {
 	if len(os.Args) < 3 || os.Args[1] != "-E" {
 		fmt.Fprintf(os.Stderr, "usage: mygrep -E <pattern>\n")
-		os.Exit(2) // 1 means no lines were selected, >1 means error
+		os.Exit(1) // 1 means no lines were selected, >1 means error
 	}
 
 	pattern := os.Args[2]
@@ -24,7 +24,7 @@ func main() {
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read input text: %v\n", err)
-		os.Exit(2)
+		os.Exit(1)
 	}
 
 	parser := Parser{
@@ -36,8 +36,10 @@ func main() {
 	parser.Parse()
 
 	if parser.Match(string(line)) {
+		fmt.Println("match found")
 		os.Exit(0)
 	}
+	fmt.Println("match not found")
 	os.Exit(1)
 }
 
