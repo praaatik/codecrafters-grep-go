@@ -48,17 +48,52 @@ const (
 
 	DigitCharacterClass
 	AlphanumericCharacterClass
+
+	PositiveCharacterGroup
+	NegativeCharacterGroup
 )
 
 type Token struct {
 	Type  TokenType
 	Value string
+	Chars []rune
 }
 
 type Parser struct {
 	pattern  string
 	position int
 	tokens   []Token
+}
+
+func (p *Parser) parseCharacterGroup() Token {
+	startPosition := p.position
+
+	isNegativeCharacterGroup := false
+	if p.pattern[p.position] == '^' {
+		isNegativeCharacterGroup = true
+		p.position += 1
+	}
+	var chars []rune
+
+	for p.position < len(p.pattern) && p.pattern[p.position] != ']' {
+		chars = append(chars, rune(p.pattern[p.position]))
+		p.position += 1
+	}
+
+	p.position += 1
+	if isNegativeCharacterGroup {
+		return Token{
+			Type:  NegativeCharacterGroup,
+			Value: p.pattern[startPosition:p.position],
+			Chars: chars,
+		}
+
+	}
+	return Token{
+		Type:  PositiveCharacterGroup,
+		Value: p.pattern[startPosition:p.position],
+		Chars: chars,
+	}
 }
 
 func (p *Parser) parseCharacterClass() Token {
@@ -88,10 +123,17 @@ func (p *Parser) Parse() []Token {
 		char := p.pattern[p.position]
 
 		switch char {
+
 		case '\\':
 			p.position += 1
 			token := p.parseCharacterClass()
 			p.tokens = append(p.tokens, token)
+
+		case '[':
+			p.position += 1
+			token := p.parseCharacterGroup()
+			p.tokens = append(p.tokens, token)
+
 		default:
 			p.position += 1
 			token := Token{
@@ -129,8 +171,23 @@ func (p *Parser) Match(input string) bool {
 					break
 				}
 				inputPos++
+
 			case Char:
 				if inputPos >= inputLength || input[inputPos] != token.Value[0] {
+					matched = false
+					break
+				}
+				inputPos++
+
+			case PositiveCharacterGroup:
+				if !isCharacterInGroup(input[inputPos], token.Chars) {
+					matched = false
+					break
+				}
+				inputPos++
+
+			case NegativeCharacterGroup:
+				if isCharacterInGroup(input[inputPos], token.Chars) {
 					matched = false
 					break
 				}
@@ -161,4 +218,14 @@ func isDigit(c byte) bool {
 
 func isAlphanumeric(c byte) bool {
 	return unicode.IsLetter(rune(c)) || c == '_' || isDigit(c)
+}
+
+func isCharacterInGroup(c byte, group []rune) bool {
+	for _, value := range group {
+		if c == byte(value) {
+			return true
+
+		}
+	}
+	return false
 }
