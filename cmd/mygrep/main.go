@@ -29,15 +29,14 @@ func main() {
 
 	//uncomment in case of debugging
 	/*
-		pattern := `\d\\d\\d apple`
-		line := "124 apples"
+		pattern := `^log`
+		line := "log"
 	*/
 	parser := Parser{
 		pattern:  pattern,
 		position: 0,
 		tokens:   []Token{},
 	}
-
 	parser.Parse()
 
 	if parser.Match(string(line)) {
@@ -60,6 +59,9 @@ const (
 
 	PositiveCharacterGroup
 	NegativeCharacterGroup
+
+	StartAnchor
+	EndAnchor
 )
 
 type Token struct {
@@ -150,8 +152,24 @@ func (p *Parser) Parse() []Token {
 			token := p.parseCharacterGroup()
 			p.tokens = append(p.tokens, token)
 
+		case '^':
+			p.position += 1
+			token := Token{
+				Type:  StartAnchor,
+				Value: "^",
+			}
+			p.tokens = append(p.tokens, token)
+
+		case '$':
+			p.position += 1
+			token := Token{
+				Type:  EndAnchor,
+				Value: "$",
+			}
+			p.tokens = append(p.tokens, token)
+
 		default:
-			fmt.Println("default condition true")
+			//fmt.Println("default condition true")
 			p.position += 1
 			token := Token{
 				Type:  Char,
@@ -175,6 +193,19 @@ func (p *Parser) Match(input string) bool {
 		// Attempt to match the pattern from this starting position
 		for _, token := range p.tokens {
 			switch token.Type {
+			case StartAnchor:
+				fmt.Println("start anchor")
+				if inputPos != 0 {
+					matched = false
+					break
+				}
+
+			case EndAnchor:
+				fmt.Println("end anchor")
+				if inputPos != inputLength {
+					matched = false
+					break
+				}
 			case AlphanumericCharacterClass:
 				if inputPos >= inputLength || !isAlphanumeric(input[inputPos]) {
 					matched = false
@@ -190,7 +221,6 @@ func (p *Parser) Match(input string) bool {
 				inputPos++
 
 			case Char:
-				//fmt.Println(input, inputPos, inputLength, p)
 				fmt.Printf("input = %s | inputPos = %d | inputLength = %d | p = %v\n", input, inputPos, inputLength, p)
 				fmt.Println(token)
 				if inputPos >= inputLength || input[inputPos] != token.Value[0] {
@@ -221,7 +251,9 @@ func (p *Parser) Match(input string) bool {
 				p.substring = ""
 				break // Stop checking if this substring doesn't match
 			}
-			p.substring += string(input[inputPos-1])
+			if inputPos > 0 {
+				p.substring += string(input[inputPos-1])
+			}
 		}
 
 		// If all tokens matched successfully, return true
