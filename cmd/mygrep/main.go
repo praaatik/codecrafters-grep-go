@@ -29,8 +29,8 @@ func main() {
 
 	//uncomment in case of debugging
 	/*
-		pattern := `ca?t`
-		line := "act"
+		pattern := `dg.`
+		line := "dog"
 	*/
 
 	parser := Parser{
@@ -64,6 +64,8 @@ const (
 
 	OneOrMoreQuantifier
 	ZeroOrOneQuantifier
+
+	Wildcard
 )
 
 type Token struct {
@@ -192,11 +194,21 @@ func (p *Parser) Parse() []Token {
 				}
 				p.tokens = p.tokens[:len(p.tokens)-1]
 				p.tokens = append(p.tokens, token)
-				//p.tokens = append(p.tokens, token)
 			}
 
+		case '.':
+			p.position += 1
+			fmt.Println("found a dot!")
+
+			token := Token{
+				Type:  Wildcard,
+				Value: ".",
+			}
+
+			p.tokens = p.tokens[:len(p.tokens)-1]
+			p.tokens = append(p.tokens, token)
+
 		default:
-			//fmt.Println("default condition true")
 			p.position += 1
 			token := Token{
 				Type:  Char,
@@ -304,6 +316,7 @@ func (p *Parser) Match(input string) bool {
 				//if inputPos < inputLength && matchToken(precedingToken, input[inputPos]) {
 				//	inputPos++
 				//}
+			case Wildcard:
 
 			default:
 				matched = false
