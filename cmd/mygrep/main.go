@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"unicode"
 )
 
@@ -28,10 +29,11 @@ func main() {
 	}
 
 	//uncomment in case of debugging
-	/*
-		pattern := `dg.`
-		line := "dog"
-	*/
+	//pattern := `(cat|\d)`
+	////line := "dogch 22"
+	//line := "2"
+
+	//line := "catch 22"
 
 	parser := Parser{
 		pattern:  pattern,
@@ -66,6 +68,10 @@ const (
 	ZeroOrOneQuantifier
 
 	Wildcard
+
+	Alternation
+	AlternationLeftBrace
+	AlternationRightBrace
 )
 
 type Token struct {
@@ -208,6 +214,30 @@ func (p *Parser) Parse() []Token {
 			p.tokens = p.tokens[:len(p.tokens)-1]
 			p.tokens = append(p.tokens, token)
 
+		case '|':
+			p.position += 1
+			token := Token{
+				Type:  Alternation,
+				Value: "|",
+			}
+			p.tokens = append(p.tokens, token)
+
+		case '(':
+			p.position += 1
+			token := Token{
+				Type:  AlternationLeftBrace,
+				Value: "(",
+			}
+			p.tokens = append(p.tokens, token)
+
+		case ')':
+			p.position += 1
+			token := Token{
+				Type:  AlternationRightBrace,
+				Value: ")",
+			}
+			p.tokens = append(p.tokens, token)
+
 		default:
 			p.position += 1
 			token := Token{
@@ -223,10 +253,12 @@ func (p *Parser) Parse() []Token {
 
 func (p *Parser) Match(input string) bool {
 	inputLength := len(input)
+	atLeastOneMatched := false
 
 	for start := 0; start < inputLength; start++ {
 		inputPos := start
 		matched := true
+		wasPrevLeftBrace := false
 
 		for i := 0; i < len(p.tokens); i++ {
 			token := p.tokens[i]
@@ -245,23 +277,49 @@ func (p *Parser) Match(input string) bool {
 
 			case AlphanumericCharacterClass:
 				if inputPos >= inputLength || !isAlphanumeric(input[inputPos]) {
+					if wasPrevLeftBrace {
+						pipeLocation := strings.Index(p.pattern, "|")
+						i = pipeLocation - 1
+						matched = false
+						wasPrevLeftBrace = false
+						continue
+					}
 					matched = false
 					break
 				}
+				matched = true
 				inputPos++
 
 			case DigitCharacterClass:
 				if inputPos >= inputLength || !isDigit(input[inputPos]) {
+					if wasPrevLeftBrace {
+						pipeLocation := strings.Index(p.pattern, "|")
+						i = pipeLocation - 1
+						matched = false
+						wasPrevLeftBrace = false
+						continue
+					}
 					matched = false
+					wasPrevLeftBrace = false
 					break
 				}
+				matched = true
 				inputPos++
 
 			case Char:
 				if inputPos >= inputLength || input[inputPos] != token.Value[0] {
+					if wasPrevLeftBrace {
+						pipeLocation := strings.Index(p.pattern, "|")
+						i = pipeLocation - 1
+						matched = false
+						wasPrevLeftBrace = false
+						continue
+					}
 					matched = false
+					wasPrevLeftBrace = false
 					break
 				}
+				matched = true
 				inputPos++
 
 			case PositiveCharacterGroup:
@@ -317,6 +375,35 @@ func (p *Parser) Match(input string) bool {
 				//	inputPos++
 				//}
 			case Wildcard:
+
+			case AlternationLeftBrace:
+				atLeastOneMatched = false
+				wasPrevLeftBrace = true
+				continue
+
+			case AlternationRightBrace:
+
+				if matched || atLeastOneMatched {
+					continue
+				}
+
+				matched = false
+				inputPos++
+
+			case Alternation:
+				// check if match has been found till now
+				if matched {
+					atLeastOneMatched = true
+					rightBraceLocation := strings.Index(p.pattern, ")")
+					inputPos += rightBraceLocation + 1
+					i += rightBraceLocation + 1
+				}
+
+				continue
+
+				//patternLeft := Parser{pattern: p.pattern[:p.position], tokens: p.tokens[:i]}
+				//patternRight := Parser{pattern: p.pattern[p.position:], tokens: p.tokens[i+1:]}
+				//return patternLeft.Match(input) || patternRight.Match(input)
 
 			default:
 				matched = false
